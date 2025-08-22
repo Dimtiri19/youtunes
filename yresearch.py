@@ -19,7 +19,7 @@ def clean_title(title):
     # Supprime tout ce qui est entre parenthèses ou crochets
     title = re.sub(r"[\(\[].*?[\)\]]", "", title)
     # Supprime 'feat.' ou 'ft.' suivi d’un nom
-    title = re.sub(r"\s+(feat\.|ft\.)\s+.*", "", title, flags=re.IGNORECASE)
+    title = re.sub(r"\s+(feat\.|ft\.|featuring)\s+.*", "", title, flags=re.IGNORECASE)
     # Supprime espaces au début et à la fin
     return title.strip()
 
