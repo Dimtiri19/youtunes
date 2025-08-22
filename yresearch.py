@@ -41,7 +41,7 @@ def search_youtube(query):
 def download_audio(url):
     global last_file
     ydl_opts = {
-        'format': 'bestaudio/best',
+        'format': 'bestaudio[ext=webm]',
         'outtmpl': '../%(title)s.%(ext)s',  # garde l'extension originale (.webm)
         'progress_hooks': [my_hook],
         'quiet': True
