@@ -9,7 +9,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 last_file = None  # variable globale pour stocker le fichier final
 
-DB_PATH = "dbsound.py"  # chemin vers ta DB SQLite
+DB_PATH = "music.db"  # chemin vers ta DB SQLite
 
 # --- Hook pour savoir quand le fichier est fini ---
 def my_hook(d):
