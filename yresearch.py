@@ -4,6 +4,15 @@ import os
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
+last_file = None  # variable globale pour stocker le fichier final
+
+# --- Hook pour savoir quand le fichier est fini ---
+def my_hook(d):
+    global last_file
+    if d['status'] == 'finished':
+        last_file = d['filename']
+        print(f"✅ Conversion terminée : {last_file}")
+
 # --- Recherche YouTube ---
 def search_youtube(query):
     ydl_opts = {
@@ -20,6 +29,7 @@ def search_youtube(query):
 
 # --- Téléchargement audio ---
 def download_audio(url):
+    global last_file
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': '../%(title)s.%(ext)s',
@@ -28,23 +38,22 @@ def download_audio(url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
+        'progress_hooks': [my_hook],
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
+    return last_file  # on retourne directement le bon fichier
 
 # --- Récupération du genre via Spotify ---
 def get_genre_from_file(file_path):
-    # Exemple : "Daft Punk - One More Time.mp3"
     base = os.path.basename(file_path)
     if " - " not in base:
         return None
     artist, title_ext = base.split(" - ", 1)
     title = title_ext.rsplit(".", 1)[0]
 
-    # Connexion Spotify
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
     
-    # Recherche du morceau
     results = sp.search(q=f"track:{title} artist:{artist}", type="track", limit=1)
     tracks = results.get("tracks", {}).get("items", [])
     if not tracks:
@@ -68,14 +77,11 @@ if __name__ == "__main__":
     if lien:
         print(f"✅ Vidéo trouvée : {lien}")
         print("⬇️ Téléchargement en MP3...")
-        download_audio(lien)
+        downloaded_file = download_audio(lien)
         print("🎵 Téléchargement terminé !")
-
-        # Récupération du fichier téléchargé
-        downloaded_file = max([f for f in os.listdir("..") if f.endswith(".mp3")], key=os.path.getctime)
         print(f"🎧 Fichier : {downloaded_file}")
 
-        genres = get_genre_from_file(os.path.join("..", downloaded_file))
+        genres = get_genre_from_file(downloaded_file)
         if genres:
             print(f"🎼 Genres Spotify : {', '.join(genres)}")
         else:
