@@ -12,7 +12,7 @@ def my_hook(d):
     global last_file
     if d['status'] == 'finished':
         last_file = d['filename']
-        print(f"✅ Conversion terminée : {last_file}")
+        print(f"✅ Téléchargement terminé : {last_file}")
 
 # --- Nettoyage du titre pour Spotify ---
 def clean_title(title):
@@ -37,18 +37,14 @@ def search_youtube(query):
             return f"https://www.youtube.com/watch?v={video['id']}"
         return None
 
-# --- Téléchargement audio ---
+# --- Téléchargement audio (format WebM/Opus) ---
 def download_audio(url):
     global last_file
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': '../%(title)s.%(ext)s',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
+        'outtmpl': '../%(title)s.%(ext)s',  # garde l'extension originale (.webm)
         'progress_hooks': [my_hook],
+        'quiet': True
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
@@ -91,7 +87,7 @@ def get_genre_from_file(file_path):
 # --- Main ---
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("❌ Utilisation: python3 youtube_mp3.py \"texte à rechercher\"")
+        print("❌ Utilisation: python3 youtube_audio.py \"texte à rechercher\"")
         sys.exit(1)
 
     query = " ".join(sys.argv[1:])
@@ -100,10 +96,9 @@ if __name__ == "__main__":
     lien = search_youtube(query)
     if lien:
         print(f"✅ Vidéo trouvée : {lien}")
-        print("⬇️ Téléchargement en MP3...")
+        print("⬇️ Téléchargement de l’audio...")
         downloaded_file = download_audio(lien)
-        print("🎵 Téléchargement terminé !")
-        print(f"🎧 Fichier : {downloaded_file}")
+        print(f"🎧 Fichier téléchargé : {downloaded_file}")
 
         genres = get_genre_from_file(downloaded_file)
         if isinstance(genres, list):
