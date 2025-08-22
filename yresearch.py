@@ -50,11 +50,11 @@ def download_audio(url):
         ydl.download([url])
     return last_file
 
-# --- Récupération du genre via Spotify avec gestion des erreurs ---
-def get_genre_from_file(file_path):
+# --- Récupération des infos Spotify (genres + album + date) ---
+def get_track_info_from_file(file_path):
     base = os.path.basename(file_path)
     if " - " not in base:
-        return "Format fichier invalide"
+        return {"error": "Format fichier invalide"}
     
     artist, title_ext = base.split(" - ", 1)
     title = title_ext.rsplit(".", 1)[0]
@@ -70,19 +70,23 @@ def get_genre_from_file(file_path):
         # Vérifie si l'artiste existe au moins
         artist_results = sp.search(q=f"artist:{artist}", type="artist", limit=1)
         if not artist_results.get("artists", {}).get("items", []):
-            return "Auteur non trouvé"
+            return {"error": "Auteur non trouvé"}
         else:
-            return "Titre trouvé mais pas d’artiste correspondant"
+            return {"error": "Titre trouvé mais pas d’artiste correspondant"}
 
     track = tracks[0]
     artist_id = track["artists"][0]["id"]
     artist_info = sp.artist(artist_id)
     genres = artist_info.get("genres", [])
 
-    if not genres:
-        return "Genre non trouvé"
+    album_name = track["album"]["name"]
+    release_date = track["album"]["release_date"]
 
-    return genres
+    return {
+        "genres": genres if genres else ["Genre non trouvé"],
+        "album": album_name,
+        "release_date": release_date
+    }
 
 # --- Main ---
 if __name__ == "__main__":
@@ -100,10 +104,12 @@ if __name__ == "__main__":
         downloaded_file = download_audio(lien)
         print(f"🎧 Fichier téléchargé : {downloaded_file}")
 
-        genres = get_genre_from_file(downloaded_file)
-        if isinstance(genres, list):
-            print(f"🎼 Genres Spotify : {', '.join(genres)}")
+        info = get_track_info_from_file(downloaded_file)
+        if "error" in info:
+            print(f"⚠️ {info['error']}")
         else:
-            print(f"⚠️ {genres}")
+            print(f"🎼 Genres Spotify : {', '.join(info['genres'])}")
+            print(f"💿 Album : {info['album']}")
+            print(f"📅 Date de sortie : {info['release_date']}")
     else:
         print("❌ Aucun résultat trouvé.")
