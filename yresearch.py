@@ -1,4 +1,4 @@
-import yt_dlp
+import yt_dlp 
 import sys
 import os
 import re
@@ -18,7 +18,7 @@ def my_hook(d):
 def clean_title(title):
     # Supprime tout ce qui est entre parenthèses ou crochets
     title = re.sub(r"[\(\[].*?[\)\]]", "", title)
-    # Supprime 'feat.' ou 'ft.' suivi d’un nom
+    # Supprime 'feat.', 'ft.' ou 'featuring' suivi d’un nom
     title = re.sub(r"\s+(feat\.|ft\.|featuring)\s+.*", "", title, flags=re.IGNORECASE)
     # Supprime espaces au début et à la fin
     return title.strip()
@@ -54,27 +54,39 @@ def download_audio(url):
         ydl.download([url])
     return last_file
 
-# --- Récupération du genre via Spotify ---
+# --- Récupération du genre via Spotify avec gestion des erreurs ---
 def get_genre_from_file(file_path):
     base = os.path.basename(file_path)
     if " - " not in base:
-        return None
+        return "Format fichier invalide"
+    
     artist, title_ext = base.split(" - ", 1)
     title = title_ext.rsplit(".", 1)[0]
-
     title = clean_title(title)
 
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
     
+    # Recherche du morceau
     results = sp.search(q=f"track:{title} artist:{artist}", type="track", limit=3)
     tracks = results.get("tracks", {}).get("items", [])
+
     if not tracks:
-        return None
+        # Vérifie si l'artiste existe au moins
+        artist_results = sp.search(q=f"artist:{artist}", type="artist", limit=1)
+        if not artist_results.get("artists", {}).get("items", []):
+            return "Auteur non trouvé"
+        else:
+            return "Titre trouvé mais pas d’artiste correspondant"
 
     track = tracks[0]
     artist_id = track["artists"][0]["id"]
     artist_info = sp.artist(artist_id)
-    return artist_info.get("genres", [])
+    genres = artist_info.get("genres", [])
+
+    if not genres:
+        return "Genre non trouvé"
+
+    return genres
 
 # --- Main ---
 if __name__ == "__main__":
@@ -94,9 +106,9 @@ if __name__ == "__main__":
         print(f"🎧 Fichier : {downloaded_file}")
 
         genres = get_genre_from_file(downloaded_file)
-        if genres:
+        if isinstance(genres, list):
             print(f"🎼 Genres Spotify : {', '.join(genres)}")
         else:
-            print("❌ Genre non trouvé sur Spotify")
+            print(f"⚠️ {genres}")
     else:
         print("❌ Aucun résultat trouvé.")
