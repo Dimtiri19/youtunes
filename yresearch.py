@@ -19,7 +19,7 @@ def download_audio(url):
     """Télécharge l'audio en MP3 depuis une URL YouTube"""
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': '%(title)s.%(ext)s',  # nom du fichier = titre vidéo
+        'outtmpl': '../%(title)s.%(ext)s',  # nom du fichier = titre vidéo
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',      # format audio
