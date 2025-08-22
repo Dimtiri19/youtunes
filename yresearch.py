@@ -1,6 +1,7 @@
 import yt_dlp
 import sys
 import os
+import re
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
@@ -12,6 +13,15 @@ def my_hook(d):
     if d['status'] == 'finished':
         last_file = d['filename']
         print(f"✅ Conversion terminée : {last_file}")
+
+# --- Nettoyage du titre pour Spotify ---
+def clean_title(title):
+    # Supprime tout ce qui est entre parenthèses ou crochets
+    title = re.sub(r"[\(\[].*?[\)\]]", "", title)
+    # Supprime 'feat.' ou 'ft.' suivi d’un nom
+    title = re.sub(r"\s+(feat\.|ft\.)\s+.*", "", title, flags=re.IGNORECASE)
+    # Supprime espaces au début et à la fin
+    return title.strip()
 
 # --- Recherche YouTube ---
 def search_youtube(query):
@@ -42,7 +52,7 @@ def download_audio(url):
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
-    return last_file  # on retourne directement le bon fichier
+    return last_file
 
 # --- Récupération du genre via Spotify ---
 def get_genre_from_file(file_path):
@@ -52,9 +62,11 @@ def get_genre_from_file(file_path):
     artist, title_ext = base.split(" - ", 1)
     title = title_ext.rsplit(".", 1)[0]
 
+    title = clean_title(title)
+
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
     
-    results = sp.search(q=f"track:{title} artist:{artist}", type="track", limit=1)
+    results = sp.search(q=f"track:{title} artist:{artist}", type="track", limit=3)
     tracks = results.get("tracks", {}).get("items", [])
     if not tracks:
         return None
