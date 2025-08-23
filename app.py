@@ -31,12 +31,14 @@ def login():
             return resp
         else:
             return "Identifiants invalides", 401
+    # HTML du login avec lien vers register
     return '''
     <form method="post">
       <input name="username" placeholder="Username"/>
-      <input name="password" type="password" placeholder="Password"/>
+      <input name="password" type="password" placeholder="Password" type="password"/>
       <button type="submit">Login</button>
     </form>
+    <p>Pas encore de compte ? <a href="/auth/register">Inscrivez-vous ici</a></p>
     '''
 
 @app.route("/auth/register", methods=["GET", "POST"])
@@ -48,14 +50,17 @@ def register():
         conn = sqlite3.connect("music.db")
         c = conn.cursor()
         try:
-            c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                      (username, hash_password(password)))
+            c.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                (username, hash_password(password))
+            )
             conn.commit()
         except sqlite3.IntegrityError:
             conn.close()
             return "Nom d'utilisateur déjà utilisé", 400
         conn.close()
         return redirect("/auth/login")
+    # HTML du register
     return '''
     <form method="post">
       <input name="username" placeholder="Username"/>
