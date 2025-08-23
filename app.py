@@ -1,85 +1,68 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, request, jsonify, redirect, make_response
 import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
+import hashlib
+import uuid
 
 app = Flask(__name__)
-app.secret_key = "super_secret_key"  # ⚠️ à changer par une vraie clé longue et secrète
-DB = "music.db"
+app.secret_key = "une_cle_secrete_pour_session"
 
-# --- Connexion DB ---
-def get_db():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    return conn
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-# --- Page principale protégée ---
-@app.route("/")
-def index():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-    return f"🎵 Bienvenue {session['username']} sur ton site de musique !"
+def check_user(username, password):
+    conn = sqlite3.connect("music.db")
+    c = conn.cursor()
+    c.execute("SELECT password_hash FROM users WHERE username=?", (username,))
+    row = c.fetchone()
+    conn.close()
+    if row and row[0] == hash_password(password):
+        return True
+    return False
 
-# --- Login ---
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/auth/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-
-        conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-        conn.close()
-
-        if user and check_password_hash(user["password_hash"], password):
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            return redirect(url_for("index"))
+        data = request.form
+        username = data.get("username")
+        password = data.get("password")
+        if check_user(username, password):
+            resp = make_response(redirect("/"))
+            resp.set_cookie("session_id", str(uuid.uuid4()))
+            return resp
         else:
-            return "❌ Identifiants incorrects"
-
+            return "Identifiants invalides", 401
     return '''
-        <h2>Connexion</h2>
-        <form method="post">
-            <input type="text" name="username" placeholder="Nom d'utilisateur" required><br>
-            <input type="password" name="password" placeholder="Mot de passe" required><br>
-            <button type="submit">Se connecter</button>
-        </form>
-        <a href="/register">Créer un compte</a>
+    <form method="post">
+      <input name="username" placeholder="Username"/>
+      <input name="password" type="password" placeholder="Password"/>
+      <button type="submit">Login</button>
+    </form>
     '''
 
-# --- Register ---
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/auth/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-
-        hashed_pw = generate_password_hash(password)
-
+        data = request.form
+        username = data.get("username")
+        password = data.get("password")
+        conn = sqlite3.connect("music.db")
+        c = conn.cursor()
         try:
-            conn = get_db()
-            conn.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, hashed_pw))
+            c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                      (username, hash_password(password)))
             conn.commit()
-            conn.close()
-            return redirect(url_for("login"))
         except sqlite3.IntegrityError:
-            return "⚠️ Ce nom d'utilisateur existe déjà."
-
+            conn.close()
+            return "Nom d'utilisateur déjà utilisé", 400
+        conn.close()
+        return redirect("/auth/login")
     return '''
-        <h2>Créer un compte</h2>
-        <form method="post">
-            <input type="text" name="username" placeholder="Nom d'utilisateur" required><br>
-            <input type="password" name="password" placeholder="Mot de passe" required><br>
-            <button type="submit">Créer un compte</button>
-        </form>
-        <a href="/login">Déjà un compte ?</a>
+    <form method="post">
+      <input name="username" placeholder="Username"/>
+      <input name="password" type="password" placeholder="Password"/>
+      <button type="submit">Register</button>
+    </form>
     '''
 
-# --- Logout ---
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000)
